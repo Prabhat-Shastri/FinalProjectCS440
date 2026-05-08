@@ -1,14 +1,9 @@
 import numpy as np
 import time
 import os
+import matplotlib.pyplot as plt
 
-# ─────────────────────────────────────────
-# DATA LOADING
-# ─────────────────────────────────────────
-# Each image in the data files is stored as rows of ASCII characters.
-# ' ' and '+' = 0 (background), '#' and other marks = 1 (edge/ink).
-# We read each image row by row, convert chars to 0/1, then flatten to a vector.
-
+#Data Loading
 def load_images(filepath, width, height):
     images = []
     with open(filepath, 'r') as f:
@@ -21,7 +16,7 @@ def load_images(filepath, width, height):
             row = row.ljust(width)          # pad short lines
             for ch in row[:width]:
                 # Dataset encoding: ' ' and '+' are background (0); '#' is ink/edge (1)
-                img.append(0 if (ch == ' ' or ch == '+') else 1)
+                img.append(0 if (ch == ' ') else 1)
         if len(img) == width * height:
             images.append(np.array(img, dtype=np.float32))
     return images
@@ -30,12 +25,7 @@ def load_labels(filepath):
     with open(filepath, 'r') as f:
         return [int(line.strip()) for line in f if line.strip()]
 
-# ─────────────────────────────────────────
-# PERCEPTRON CLASS
-# ─────────────────────────────────────────
-# Classic perceptron: hard threshold prediction + mistake-driven updates.
-# For multiclass digits, we train one perceptron per class (one-vs-all).
-
+#Perceptron Class with hard threshold prediction and mistake-driven updates.
 class Perceptron:
     def __init__(self, input_size, lr=0.01, epochs=10):
         # Initialize weights and bias
@@ -51,7 +41,6 @@ class Perceptron:
         return 1 if self.score(x) >= 0.0 else 0
 
     def train(self, X, y):
-        # Online perceptron update: only update on mistakes.
         X_list = list(X)
         y_list = list(y)
         for _ in range(self.epochs):
@@ -65,13 +54,7 @@ class Perceptron:
                     self.w += self.lr * delta * xi
                     self.b += self.lr * delta
 
-
-# ─────────────────────────────────────────
-# ONE-VS-ALL WRAPPER (for digits 0-9)
-# ─────────────────────────────────────────
-# Train 10 perceptrons. Perceptron k learns "is this digit k or not?"
-# At prediction time, pick the digit whose perceptron fires most confidently.
-
+#For digits 0-9, train 10 perceptrons. Perceptron k learns "is this digit k or not?"
 class OneVsAllPerceptron:
     def __init__(self, input_size, num_classes, lr=0.01, epochs=10):
         self.classifiers = [
@@ -90,12 +73,7 @@ class OneVsAllPerceptron:
         return int(np.argmax(scores))
 
 
-# ─────────────────────────────────────────
-# EXPERIMENT RUNNER
-# ─────────────────────────────────────────
-# For each training percentage (10%–100%), run 5 random trials.
-# Record accuracy and training time, then compute mean ± std.
-
+#Run 5 random trials for each
 def run_experiment(X_train, y_train, X_test, y_test, task='face',
                    percentages=None, n_trials=5, lr=0.01, epochs=10):
     if percentages is None:
@@ -143,13 +121,7 @@ def run_experiment(X_train, y_train, X_test, y_test, task='face',
 
     return results
 
-
-# ─────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────
 if __name__ == '__main__':
-    # Default: assume `data/` is next to this file.
-    # You can override by setting the environment variable PERCEPTRON_DATA_DIR.
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.environ.get('PERCEPTRON_DATA_DIR', os.path.join(SCRIPT_DIR, 'data'))
 
@@ -194,3 +166,50 @@ if __name__ == '__main__':
         digit_X_test,  digit_y_test,
         task='digit', lr=0.01, epochs=15
     )
+
+    pcts = [r['pct'] for r in face_results]
+
+    plots_dir = os.path.join(SCRIPT_DIR, 'plots')
+    os.makedirs(plots_dir, exist_ok=True)
+
+    plt.plot(pcts, [r['mean_time'] for r in face_results], '--', label="Average Time Taken for Training Face Perceptron")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Seconds")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'face_perceptron_time.png'))
+    plt.show()
+
+    plt.plot(pcts, [r['mean_time'] for r in digit_results], '--', label="Average Time Taken for Training Digit Perceptron")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Seconds")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'digit_perceptron_time.png'))
+    plt.show()
+
+    plt.plot(pcts, [r['mean_acc'] for r in face_results], '--', label="Average Accuracy of Face Perceptron")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'face_perceptron_accuracy.png'))
+    plt.show()
+
+    plt.plot(pcts, [r['mean_acc'] for r in digit_results], '--', label="Average Accuracy of Digit Perceptron")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'digit_perceptron_accuracy.png'))
+    plt.show()
+
+    plt.plot(pcts, [r['std_acc'] for r in face_results], '--', label="Standard Deviation of Face Perceptron Accuracy")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Stdev")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'face_perceptron_stdev.png'))
+    plt.show()
+
+    plt.plot(pcts, [r['std_acc'] for r in digit_results], '--', label="Standard Deviation of Digit Perceptron Accuracy")
+    plt.xlabel("Percent of Data Used for Training")
+    plt.ylabel("Stdev")
+    plt.legend()
+    plt.savefig(os.path.join(plots_dir, 'digit_perceptron_stdev.png'))
+    plt.show()
