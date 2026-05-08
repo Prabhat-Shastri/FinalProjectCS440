@@ -13,9 +13,8 @@ def load_images(filepath, width, height):
         img = []
         for row in block:
             row = row.rstrip('\n')
-            row = row.ljust(width)          # pad short lines
+            row = row.ljust(width)   
             for ch in row[:width]:
-                # Dataset encoding: ' ' and '+' are background (0); '#' is ink/edge (1)
                 img.append(0 if (ch == ' ') else 1)
         if len(img) == width * height:
             images.append(np.array(img, dtype=np.float32))
